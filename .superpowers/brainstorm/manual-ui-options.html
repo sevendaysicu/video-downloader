@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Video Downloader UI Options</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0f172a;
+      --panel: #111827;
+      --panel-2: #172033;
+      --text: #f8fafc;
+      --muted: #94a3b8;
+      --line: rgba(255,255,255,.1);
+      --blue: #38bdf8;
+      --pink: #ec4899;
+      --green: #22c55e;
+      --amber: #f59e0b;
+      font-family: Inter, "Microsoft YaHei", "PingFang SC", system-ui, sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: radial-gradient(circle at top left, rgba(56,189,248,.18), transparent 34rem), var(--bg);
+      color: var(--text);
+      padding: 32px;
+    }
+
+    header { max-width: 980px; margin: 0 auto 28px; }
+    h1 { margin: 0 0 10px; font-size: 28px; letter-spacing: 0; }
+    p { margin: 0; color: var(--muted); line-height: 1.6; }
+
+    .grid {
+      max-width: 1180px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 20px;
+    }
+
+    .option {
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: rgba(15, 23, 42, .78);
+      padding: 16px;
+      box-shadow: 0 20px 60px rgba(0,0,0,.22);
+    }
+
+    .option h2 { font-size: 18px; margin: 0 0 6px; }
+    .option > p { min-height: 52px; font-size: 14px; }
+
+    .phone {
+      width: min(100%, 330px);
+      aspect-ratio: 9 / 18.5;
+      margin: 18px auto 14px;
+      border: 1px solid rgba(255,255,255,.16);
+      border-radius: 28px;
+      background: #09111f;
+      padding: 16px;
+      overflow: hidden;
+    }
+
+    .top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+    .brand { font-size: 18px; font-weight: 750; }
+    .chip { color: #bae6fd; background: rgba(56,189,248,.14); border: 1px solid rgba(56,189,248,.28); border-radius: 999px; padding: 5px 9px; font-size: 11px; }
+    .field { border: 1px solid rgba(255,255,255,.12); background: rgba(255,255,255,.045); border-radius: 12px; padding: 12px; color: var(--muted); font-size: 12px; min-height: 96px; }
+    .button { height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-weight: 700; margin-top: 12px; }
+    .button.blue { background: var(--blue); color: #082f49; }
+    .button.pink { background: linear-gradient(135deg, var(--pink), #2563eb); }
+    .button.green { background: var(--green); color: #052e16; }
+    .status { margin-top: 14px; border: 1px solid rgba(255,255,255,.1); background: rgba(255,255,255,.045); border-radius: 12px; padding: 12px; }
+    .bar { height: 8px; background: rgba(255,255,255,.1); border-radius: 99px; overflow: hidden; margin: 10px 0; }
+    .fill { height: 100%; border-radius: inherit; background: var(--blue); width: 68%; }
+    .rows { display: grid; gap: 8px; margin-top: 12px; }
+    .row { height: 26px; border-radius: 8px; background: rgba(255,255,255,.055); display: flex; align-items: center; padding: 0 9px; color: var(--muted); font-size: 11px; }
+    .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
+    .small { height: 42px; border-radius: 11px; background: rgba(255,255,255,.08); display: flex; align-items: center; justify-content: center; font-size: 12px; color: #dbeafe; }
+    .steps { display: grid; gap: 10px; margin-top: 14px; }
+    .step { display: grid; grid-template-columns: 26px 1fr; gap: 10px; align-items: center; padding: 10px; border-radius: 12px; background: rgba(255,255,255,.055); }
+    .dot { width: 26px; height: 26px; border-radius: 50%; background: rgba(56,189,248,.2); color: #bae6fd; display: grid; place-items: center; font-size: 12px; font-weight: 800; }
+    .copy { font-size: 12px; color: #e2e8f0; }
+    ul { margin: 12px 0 0; padding-left: 18px; color: var(--muted); line-height: 1.55; font-size: 13px; }
+
+    @media (max-width: 980px) {
+      body { padding: 20px; }
+      .grid { grid-template-columns: 1fr; }
+      .option > p { min-height: auto; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>视频下载器 Android UI 优化方向</h1>
+    <p>当前项目是 Kivy 单页工具：粘贴 Request URL、下载切片、合并、查看文件。下面三种方向都保留现有功能，只调整信息层级、触控、状态反馈和视觉系统。</p>
+  </header>
+
+  <main class="grid">
+    <section class="option">
+      <h2>A. 保守打磨</h2>
+      <p>在现有单页结构上优化，成本最低，主要解决乱码、间距、按钮和日志可读性。</p>
+      <div class="phone">
+        <div class="top"><div class="brand">视频下载器</div><div class="chip">就绪</div></div>
+        <div class="field">粘贴完整 Request URL<br><br>https://example.com/hls/.../CLS-001.jpg?auth=...</div>
+        <div class="button blue">开始下载切片</div>
+        <div class="actions"><div class="small">合并视频</div><div class="small">查看文件</div></div>
+        <div class="status">
+          <div class="copy">状态：等待捕获指令</div>
+          <div class="rows">
+            <div class="row">运行日志</div>
+            <div class="row">目标链接识别成功</div>
+            <div class="row">CLS-001.bin 已保存</div>
+          </div>
+        </div>
+      </div>
+      <ul>
+        <li>改动小，风险低。</li>
+        <li>仍然是日志驱动，进度感一般。</li>
+      </ul>
+    </section>
+
+    <section class="option">
+      <h2>B. 工具仪表盘</h2>
+      <p>推荐方向。把状态、进度、主操作和日志分层，像一个专业移动工具，而不是脚本外壳。</p>
+      <div class="phone">
+        <div class="top"><div class="brand">Video Grabber</div><div class="chip">68%</div></div>
+        <div class="status">
+          <div class="copy">正在下载 CLS-068.bin</div>
+          <div class="bar"><div class="fill"></div></div>
+          <div class="copy">68 / 100 切片 · 目录已准备</div>
+        </div>
+        <div class="field" style="min-height: 86px; margin-top: 12px;">Request URL<br><br>自动识别服务器、视频 ID 和鉴权参数</div>
+        <div class="button pink">开始下载</div>
+        <div class="actions"><div class="small">合并</div><div class="small">文件</div></div>
+        <div class="rows">
+          <div class="row">成功：CLS-067.bin</div>
+          <div class="row">成功：CLS-068.bin</div>
+          <div class="row">下一步：继续拉取</div>
+        </div>
+      </div>
+      <ul>
+        <li>主路径清晰，进度反馈更强。</li>
+        <li>适合后续加暂停、重试、历史任务。</li>
+      </ul>
+    </section>
+
+    <section class="option">
+      <h2>C. 分步向导</h2>
+      <p>把流程拆成“粘贴、下载、合并、保存”四步，适合新手，但老用户会多点几次。</p>
+      <div class="phone">
+        <div class="top"><div class="brand">下载向导</div><div class="chip">第 2 步</div></div>
+        <div class="steps">
+          <div class="step"><div class="dot">1</div><div class="copy">粘贴 Request URL</div></div>
+          <div class="step"><div class="dot">2</div><div class="copy">识别切片和鉴权参数</div></div>
+          <div class="step"><div class="dot">3</div><div class="copy">下载并显示进度</div></div>
+          <div class="step"><div class="dot">4</div><div class="copy">合并为 MP4</div></div>
+        </div>
+        <div class="field" style="margin-top: 14px; min-height: 88px;">已识别：example.com<br>保存：Download/slices_video</div>
+        <div class="button green">继续下载</div>
+      </div>
+      <ul>
+        <li>错误恢复和说明最友好。</li>
+        <li>实现稍复杂，效率感不如仪表盘。</li>
+      </ul>
+    </section>
+  </main>
+</body>
+</html>
