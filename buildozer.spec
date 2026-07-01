@@ -7,6 +7,10 @@ source.dir = .
 source.include_exts = py,png,jpg,json,ttf
 version = 1.0
 
+# 应用图标
+icon.filename = icon.png
+presplash.filename = icon.png
+
 # 核心依赖（已精简，确保合包不卡死）
 requirements = python3,kivy,requests,urllib3,certifi,charset_normalizer,idna
 

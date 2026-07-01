@@ -32,12 +32,23 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 
 def clamp_progress(current, total, complete=False):
-    if total <= 0:
-        return 100 if complete else 0
-    percent = int((current / total) * 100)
+    """计算进度百分比，支持已知/未知总数两种模式"""
     if complete:
-        return max(0, min(percent, 100))
+        return 100
+    if total <= 0:
+        return 0
+    percent = int((current / total) * 100)
     return max(0, min(percent, 99))
+
+
+def estimate_progress(current, cap=90):
+    """未知总数时，用对数曲线估算进度（上限 cap%），避免进度条长期不动"""
+    import math
+    if current <= 0:
+        return 0
+    # 对数增长：下载越多增速越缓，50个切片≈60%，200个≈80%，永远不超过cap
+    progress = int(cap * (1 - 1 / (1 + math.log(1 + current * 0.15))))
+    return max(0, min(progress, cap))
 
 
 def trim_log_lines(existing_text, message, max_lines=35):
@@ -75,8 +86,10 @@ class VideoDownloaderAndroid(App):
         self.is_downloading = False
         self.progress_percent = 0
         
-        # 预设估计最大切片数（用于计算进度百分比，捕获到 EOF 后会自动更新精确值）
-        self.estimated_total = 100 
+        # 实际切片总数（初始未知，EOF 确认后才赋值）
+        self.actual_total = 0
+        # 标记是否已探测到真实总数
+        self.total_known = False
         
         if platform == 'android':
             from android.permissions import request_permissions, Permission
@@ -103,7 +116,7 @@ class VideoDownloaderAndroid(App):
         scroll.add_widget(content)
         root.add_widget(scroll)
         self.set_status("就绪", "等待下载任务", "粘贴 Request URL 后开始下载")
-        self.update_progress(0, self.estimated_total)
+        self.update_progress(0, 0)
         return root
 
     def build_header(self):
@@ -175,7 +188,7 @@ class VideoDownloaderAndroid(App):
         card.add_widget(self.progress_bar)
 
         self.progress_detail = Label(
-            text="0% · 0 / 100 切片",
+            text="0% · 等待开始",
             color=self.COLORS["muted"],
             size_hint_y=None,
             height=dp(24),
@@ -359,9 +372,18 @@ class VideoDownloaderAndroid(App):
 
     @mainthread
     def update_progress(self, current, total, complete=False):
-        self.progress_percent = clamp_progress(current, total, complete=complete)
-        safe_total = max(total, 0)
-        self.progress_detail.text = f"{self.progress_percent}% · {current} / {safe_total} 切片"
+        if complete:
+            # 已确认总数，显示精确进度
+            self.progress_percent = 100
+            self.progress_detail.text = f"100% · {current} / {current} 切片"
+        elif total > 0:
+            # 已知总数（EOF 确认后的二次校正调用）
+            self.progress_percent = clamp_progress(current, total)
+            self.progress_detail.text = f"{self.progress_percent}% · {current} / {total} 切片"
+        else:
+            # 总数未知，使用对数估算进度
+            self.progress_percent = estimate_progress(current)
+            self.progress_detail.text = f"{self.progress_percent}% · 已下载 {current} 个切片"
         if hasattr(self, "progress_bar"):
             self.update_progress_graphics(self.progress_bar, None)
 
@@ -382,7 +404,9 @@ class VideoDownloaderAndroid(App):
         self.log("\n" + "="*30)
         self.log("[*] 正在分析 Request URL 特征...")
         self.set_status("下载中", "正在分析 Request URL", "请保持应用在前台")
-        self.update_progress(0, self.estimated_total)
+        self.actual_total = 0
+        self.total_known = False
+        self.update_progress(0, 0)
         
         if not raw_url.startswith("http://") and not raw_url.startswith("https://"):
             self.log("[错误] 链接不合法，必须包含 https:// 开头。")
@@ -480,6 +504,7 @@ class VideoDownloaderAndroid(App):
         try:
             self.log("[*] 高并发进度监听打捞引擎启动...")
             continuous_errors = 0
+            downloaded_count = 0  # 实际成功下载/跳过的切片计数
             
             for idx in range(1, 600):
                 if not self.is_downloading:
@@ -487,25 +512,26 @@ class VideoDownloaderAndroid(App):
                 
                 res = self.download_worker(idx)
                 
-                # 计算并输出当前进度的数字百分比
-                progress_percent = clamp_progress(idx, self.estimated_total)
-                self.update_progress(idx, self.estimated_total)
-                progress_text = f" -> 进度: {progress_percent}% ({idx}/{self.estimated_total})"
-                
                 if res == "EOF":
                     # 再次校验确认真实尾部
                     if self.download_worker(idx + 1) == "EOF":
-                        self.estimated_total = idx - 1
-                        self.update_progress(self.estimated_total, self.estimated_total, complete=True)
+                        self.actual_total = idx - 1
+                        self.total_known = True
+                        self.update_progress(self.actual_total, self.actual_total, complete=True)
                         self.set_status("完成", "切片下载完成", "可以点击合并视频")
-                        self.log(f"\n[完成] 进度: 100% ({self.estimated_total}/{self.estimated_total})")
+                        self.log(f"\n[完成] 共 {self.actual_total} 个切片，全部下载完成 (100%)")
                         self.log("[完成] 成功捕获流尾部信号，切片拉取完毕。")
                         break
                 elif res == "SUCCESS":
-                    self.log(f"[+] 成功固化: CLS-{idx:03d}.bin" + progress_text)
+                    downloaded_count += 1
+                    # 未知总数模式：只显示已下载数量
+                    self.update_progress(downloaded_count, 0)
+                    self.log(f"[+] 成功固化: CLS-{idx:03d}.bin -> 已下载 {downloaded_count} 个切片")
                     continuous_errors = 0
                 elif res == "EXISTS":
-                    self.log(f"[-] 跳过重复: CLS-{idx:03d}.bin" + progress_text)
+                    downloaded_count += 1
+                    self.update_progress(downloaded_count, 0)
+                    self.log(f"[-] 跳过重复: CLS-{idx:03d}.bin -> 已下载 {downloaded_count} 个切片")
                     continuous_errors = 0
                 elif res.startswith("AUTH_ERR_"):
                     code = res.split('_')[-1]
