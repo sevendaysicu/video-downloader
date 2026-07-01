@@ -5,6 +5,7 @@ package.name = videodownloader
 package.domain = org.rouvideo
 source.dir = .
 source.include_exts = py,png,jpg,json,ttf
+source.exclude_dirs = tests, bin, .venv, .pytest_cache, .git, .github, .agents
 version = 1.0
 
 # 应用图标
