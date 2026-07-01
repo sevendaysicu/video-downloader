@@ -56,20 +56,20 @@ class VideoDownloaderAndroid(App):
         splash_layout.add_widget(Widget(size_hint_y=0.22))
 
         # 渐进式圆环 Logo 标志 (带圆角背景)
-        logo_container = BoxLayout(
+        self.logo_container = BoxLayout(
             orientation='vertical', size_hint=(None, None),
             width=dp(96), height=dp(96),
             pos_hint={'center_x': 0.5}
         )
-        self._apply_background(logo_container, COLORS["primary"], radius=48)
+        self._apply_background(self.logo_container, COLORS["primary"], radius=48)
         logo_label = Label(
             text="↓", font_size=dp(48), bold=True,
             color=COLORS["primary_dark"],
             halign="center", valign="middle"
         )
         logo_label.bind(size=logo_label.setter('text_size'))
-        logo_container.add_widget(logo_label)
-        splash_layout.add_widget(logo_container)
+        self.logo_container.add_widget(logo_label)
+        splash_layout.add_widget(self.logo_container)
 
         splash_layout.add_widget(Widget(size_hint_y=0.04))
 
@@ -141,7 +141,7 @@ class VideoDownloaderAndroid(App):
         # 启动呼吸灯动画
         self.logo_anim = Animation(opacity=0.3, duration=0.8) + Animation(opacity=1.0, duration=0.8)
         self.logo_anim.repeat = True
-        self.logo_anim.start(logo_container)
+        self.logo_anim.start(self.logo_container)
 
         # 触发延迟任务完成加载态转换
         Clock.schedule_once(lambda dt: self._update_splash_status("正在校验安全沙箱环境..."), 0.5)
@@ -158,8 +158,8 @@ class VideoDownloaderAndroid(App):
 
     def _switch_to_main(self, dt):
         """切换至主控制台，释放动画算力"""
-        if hasattr(self, 'logo_anim'):
-            self.logo_anim.stop_all()
+        if hasattr(self, 'logo_anim') and hasattr(self, 'logo_container'):
+            self.logo_anim.cancel(self.logo_container)
         if hasattr(self, 'screen_manager'):
             self.screen_manager.current = 'main'
 
