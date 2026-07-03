@@ -1,0 +1,20 @@
+# Python 编译缓存
+__pycache__/
+*.py[cod]
+*.pyo
+
+# 测试与构建缓存
+.pytest_cache/
+.buildozer/
+bin/
+
+# 虚拟环境
+.venv/
+venv/
+
+# IDE
+.vscode/
+.idea/
+
+# 下载缓存（运行时生成）
+slices_*/

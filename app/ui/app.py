@@ -254,7 +254,7 @@ class VideoDownloaderAndroid(App):
         ))
         self.url_input = TextInput(
             multiline=True,
-            hint_text="示例: https://example.com/hls/video/CLS-001.jpg?v=6&auth=...",
+            hint_text="https://example.com/hls/video/CLS-6-v1-a1.jpg?v=6&auth=...",
             size_hint_y=None, height=dp(130),
             background_color=(1, 1, 1, 0.06),
             foreground_color=COLORS["text"],
@@ -262,11 +262,12 @@ class VideoDownloaderAndroid(App):
             cursor_color=COLORS["primary"],
             padding=[dp(12), dp(12), dp(12), dp(12)],
             font_size=dp(14),
+            font_name='Roboto',
         )
         card.add_widget(self.url_input)
 
         helper = Label(
-            text="需要包含 CLS-001.jpg 这类切片序列和完整鉴权参数。",
+            text="支持 CLS-001.jpg 或 CLS-6-v1-a1.jpg 格式，需含完整鉴权参数。",
             color=COLORS["muted"], size_hint_y=None, height=dp(28),
             font_size=dp(12), halign="left",
         )
