@@ -1,5 +1,10 @@
 """辅助函数单元测试（无 Kivy 依赖，直接测试纯函数）"""
-from app.helpers import clamp_progress, estimate_progress, trim_log_lines
+from app.helpers import (
+    clamp_progress,
+    estimate_progress,
+    get_loading_phase,
+    trim_log_lines,
+)
 
 
 # ── clamp_progress 测试 ─────────────────────────────────────
@@ -40,3 +45,17 @@ def test_estimate_progress_zero():
 def test_estimate_progress_positive_within_cap():
     result = estimate_progress(50)
     assert 0 < result <= 90
+
+
+# ── splash loading phase 测试 ───────────────────────────────
+
+def test_get_loading_phase_returns_ordered_progress_and_message():
+    progress, message = get_loading_phase(0)
+    assert progress == 0.28
+    assert "界面" in message
+
+
+def test_get_loading_phase_clamps_to_last_phase():
+    progress, message = get_loading_phase(99)
+    assert progress == 1.0
+    assert "就绪" in message

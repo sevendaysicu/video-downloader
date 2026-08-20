@@ -22,7 +22,12 @@ from app import ROOT_DIR
 LabelBase.register(DEFAULT_FONT, os.path.join(ROOT_DIR, 'font.ttf'))
 
 from app.config import COLORS, LOG_MAX_LINES
-from app.helpers import clamp_progress, estimate_progress, trim_log_lines
+from app.helpers import (
+    clamp_progress,
+    estimate_progress,
+    get_loading_phase,
+    trim_log_lines,
+)
 from app.url_parser import validate_url, parse_video_url
 from app.downloader import DownloadEngine
 from app.merger import merge_slices
@@ -53,57 +58,90 @@ class VideoDownloaderAndroid(App):
         self._apply_background(splash_layout, COLORS["background"])
 
         # 顶部伸缩占位
-        splash_layout.add_widget(Widget(size_hint_y=0.22))
+        splash_layout.add_widget(Widget(size_hint_y=0.18))
+
+        self.splash_card = BoxLayout(
+            orientation='vertical',
+            padding=[dp(22), dp(24), dp(22), dp(22)],
+            spacing=dp(12),
+            size_hint=(1, None),
+            height=dp(314),
+        )
+        self._apply_background(self.splash_card, COLORS["surface"], radius=22)
 
         # 渐进式圆环 Logo 标志 (带圆角背景)
         self.logo_container = BoxLayout(
-            orientation='vertical', size_hint=(None, None),
-            width=dp(96), height=dp(96),
-            pos_hint={'center_x': 0.5}
+            orientation='vertical',
+            size_hint=(None, None),
+            width=dp(92),
+            height=dp(92),
+            pos_hint={'center_x': 0.5},
         )
-        self._apply_background(self.logo_container, COLORS["primary"], radius=48)
+        self._apply_background(self.logo_container, COLORS["primary"], radius=46)
         logo_label = Label(
-            text="↓", font_size=dp(48), bold=True,
+            text="VD", font_size=dp(30), bold=True,
             color=COLORS["primary_dark"],
-            halign="center", valign="middle"
+            halign="center", valign="middle",
         )
         logo_label.bind(size=logo_label.setter('text_size'))
         self.logo_container.add_widget(logo_label)
-        splash_layout.add_widget(self.logo_container)
+        self.splash_card.add_widget(self.logo_container)
 
-        splash_layout.add_widget(Widget(size_hint_y=0.04))
+        self.splash_card.add_widget(Widget(size_hint_y=None, height=dp(2)))
 
         # App 标题与定位语
         app_title = Label(
             text="视频下载器", font_size=dp(28), bold=True,
             color=COLORS["text"], size_hint_y=None, height=dp(36),
-            halign="center"
+            halign="center",
         )
         app_title.bind(size=app_title.setter('text_size'))
-        splash_layout.add_widget(app_title)
+        self.splash_card.add_widget(app_title)
 
         app_subtitle = Label(
-            text="并发拉取 · 物理合流 · 极速固化", font_size=dp(13),
+            text="切片抓取 · 进度追踪 · 视频合并", font_size=dp(13),
             color=COLORS["muted"], size_hint_y=None, height=dp(22),
-            halign="center"
+            halign="center",
         )
         app_subtitle.bind(size=app_subtitle.setter('text_size'))
-        splash_layout.add_widget(app_subtitle)
+        self.splash_card.add_widget(app_subtitle)
 
-        # 中段占位
-        splash_layout.add_widget(Widget(size_hint_y=0.22))
+        self.splash_card.add_widget(Widget(size_hint_y=None, height=dp(12)))
+
+        self.splash_progress_track = BoxLayout(
+            orientation='horizontal',
+            size_hint_y=None,
+            height=dp(8),
+        )
+        self._apply_background(
+            self.splash_progress_track, COLORS["surface_alt"], radius=4,
+        )
+        self.splash_progress_fill = Widget(size_hint_x=0.01)
+        self._apply_background(self.splash_progress_fill, COLORS["primary"], radius=4)
+        self.splash_progress_rest = Widget(size_hint_x=0.99)
+        self.splash_progress_track.add_widget(self.splash_progress_fill)
+        self.splash_progress_track.add_widget(self.splash_progress_rest)
+        self.splash_card.add_widget(self.splash_progress_track)
+
+        self.splash_percent = Label(
+            text="0%", font_size=dp(12), bold=True,
+            color=COLORS["primary"], size_hint_y=None, height=dp(20),
+            halign="center",
+        )
+        self.splash_percent.bind(size=self.splash_percent.setter('text_size'))
+        self.splash_card.add_widget(self.splash_percent)
 
         # 底端初始化状态描述
         self.splash_status = Label(
-            text="正在初始化系统组件...", font_size=dp(12),
+            text="正在加载界面资源...", font_size=dp(12),
             color=COLORS["muted"], size_hint_y=None, height=dp(20),
-            halign="center"
+            halign="center",
         )
         self.splash_status.bind(size=self.splash_status.setter('text_size'))
-        splash_layout.add_widget(self.splash_status)
+        self.splash_card.add_widget(self.splash_status)
 
-        # 底部留白占位
-        splash_layout.add_widget(Widget(size_hint_y=0.12))
+        splash_layout.add_widget(self.splash_card)
+        splash_layout.add_widget(Widget(size_hint_y=0.20))
         splash_screen.add_widget(splash_layout)
 
         # ── 2. 主控制界面构建 (Main Dashboard) ────────────────
@@ -118,6 +156,8 @@ class VideoDownloaderAndroid(App):
             spacing=dp(14),
             size_hint_y=None,
         )
+        content.opacity = 0
+        self.main_content = content
         content.bind(minimum_height=content.setter('height'))
 
         content.add_widget(self._build_header())
@@ -139,22 +179,44 @@ class VideoDownloaderAndroid(App):
         self._update_progress(0, 0)
 
         # 启动呼吸灯动画
-        self.logo_anim = Animation(opacity=0.3, duration=0.8) + Animation(opacity=1.0, duration=0.8)
+        self.logo_anim = (
+            Animation(opacity=0.58, duration=0.72, t="out_quad")
+            + Animation(opacity=1.0, duration=0.72, t="out_quad")
+        )
         self.logo_anim.repeat = True
         self.logo_anim.start(self.logo_container)
 
         # 触发延迟任务完成加载态转换
-        Clock.schedule_once(lambda dt: self._update_splash_status("正在校验安全沙箱环境..."), 0.5)
-        Clock.schedule_once(lambda dt: self._update_splash_status("正在就绪本地缓存目录..."), 1.0)
-        Clock.schedule_once(lambda dt: self._update_splash_status("核心引擎就绪"), 1.5)
-        Clock.schedule_once(self._switch_to_main, 1.8)
+        self._set_splash_phase(0)
+        for index, delay in enumerate((0.42, 0.86, 1.28), start=1):
+            Clock.schedule_once(
+                lambda dt, phase=index: self._set_splash_phase(phase),
+                delay,
+            )
+        Clock.schedule_once(self._switch_to_main, 1.72)
 
         return self.screen_manager
 
-    def _update_splash_status(self, text):
-        """更新启动加载过程中的指示语"""
+    def _set_splash_phase(self, index):
+        """更新启动加载过程中的指示语和进度条"""
+        progress, message = get_loading_phase(index)
         if hasattr(self, 'splash_status'):
-            self.splash_status.text = text
+            self.splash_status.text = message
+        if hasattr(self, 'splash_percent'):
+            self.splash_percent.text = f"{int(progress * 100)}%"
+        if hasattr(self, 'splash_progress_fill'):
+            Animation.cancel_all(self.splash_progress_fill, "size_hint_x")
+            Animation.cancel_all(self.splash_progress_rest, "size_hint_x")
+            Animation(
+                size_hint_x=max(progress, 0.01),
+                duration=0.30,
+                t="out_quad",
+            ).start(self.splash_progress_fill)
+            Animation(
+                size_hint_x=max(1 - progress, 0.001),
+                duration=0.30,
+                t="out_quad",
+            ).start(self.splash_progress_rest)
 
     def _switch_to_main(self, dt):
         """切换至主控制台，释放动画算力"""
@@ -162,6 +224,10 @@ class VideoDownloaderAndroid(App):
             self.logo_anim.cancel(self.logo_container)
         if hasattr(self, 'screen_manager'):
             self.screen_manager.current = 'main'
+        if hasattr(self, 'main_content'):
+            Animation(opacity=1, duration=0.28, t="out_quad").start(
+                self.main_content,
+            )
 
     # ── UI 组件构建 ──────────────────────────────────────────
 
