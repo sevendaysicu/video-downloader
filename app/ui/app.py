@@ -23,6 +23,7 @@ LabelBase.register(DEFAULT_FONT, os.path.join(ROOT_DIR, 'font.ttf'))
 
 from app.config import COLORS, LOG_MAX_LINES
 from app.helpers import (
+    build_android_save_dir,
     clamp_progress,
     estimate_progress,
     get_loading_phase,
@@ -543,11 +544,8 @@ class VideoDownloaderAndroid(App):
         # 计算保存目录
         if platform == 'android':
             from android.storage import primary_external_storage_path
-            downloads = os.path.join(
-                primary_external_storage_path(), "Download",
-            )
-            self.save_dir = os.path.join(
-                downloads, f"slices_{result.video_id}",
+            self.save_dir = build_android_save_dir(
+                primary_external_storage_path(), result.video_id,
             )
         else:
             self.save_dir = os.path.join(
@@ -627,7 +625,7 @@ class VideoDownloaderAndroid(App):
             )
             self._set_status("完成", "视频合并完成", output_path)
             self._log(
-                f"\n[完成] 物理合流成功，MP4 已归档至 Download 目录:"
+                f"\n[完成] 物理合流成功，MP4 已归档至 VideoDownloader 目录:"
                 f"\n{output_path}"
             )
         except Exception as e:
@@ -654,7 +652,7 @@ class VideoDownloaderAndroid(App):
         if platform == 'android':
             self._log(
                 "\n[提示] 视频文件和缓存均保存在手机系统的"
-                "【文件管理】 -> 【内部存储】 -> 【Download】 中。"
+                "【文件管理】 -> 【内部存储】 -> 【VideoDownloader】 中。"
             )
         else:
             if self.save_dir and os.path.exists(self.save_dir):

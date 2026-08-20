@@ -1,5 +1,6 @@
 """辅助函数单元测试（无 Kivy 依赖，直接测试纯函数）"""
 from app.helpers import (
+    build_android_save_dir,
     clamp_progress,
     estimate_progress,
     get_loading_phase,
@@ -59,3 +60,10 @@ def test_get_loading_phase_clamps_to_last_phase():
     progress, message = get_loading_phase(99)
     assert progress == 1.0
     assert "就绪" in message
+
+
+# ── Android 保存路径测试 ───────────────────────────────────
+
+def test_build_android_save_dir_uses_video_downloader_root_folder():
+    save_dir = build_android_save_dir("/storage/emulated/0", "abc123")
+    assert save_dir == "/storage/emulated/0/VideoDownloader/slices_abc123"

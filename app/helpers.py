@@ -49,3 +49,9 @@ def get_loading_phase(index):
     if index >= len(LOADING_PHASES):
         return LOADING_PHASES[-1]
     return LOADING_PHASES[index]
+
+
+def build_android_save_dir(storage_root, video_id):
+    """构建 Android 外部存储根目录下的切片缓存目录"""
+    root = storage_root.rstrip("/\\")
+    return f"{root}/VideoDownloader/slices_{video_id}"
