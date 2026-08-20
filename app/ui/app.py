@@ -23,6 +23,7 @@ LabelBase.register(DEFAULT_FONT, os.path.join(ROOT_DIR, 'font.ttf'))
 
 from app.config import COLORS, LOG_MAX_LINES
 from app.helpers import (
+    build_android_output_root,
     build_android_save_dir,
     clamp_progress,
     estimate_progress,
@@ -650,10 +651,66 @@ class VideoDownloaderAndroid(App):
     def _on_open_directory(self, instance):
         """文件位置按钮回调"""
         if platform == 'android':
-            self._log(
-                "\n[提示] 视频文件和缓存均保存在手机系统的"
-                "【文件管理】 -> 【内部存储】 -> 【VideoDownloader】 中。"
-            )
+            target_dir = self._get_android_output_root()
+            if self._open_android_directory(target_dir):
+                self._set_status("就绪", "已打开文件位置", target_dir)
+                self._log(f"\n[提示] 正在打开文件夹: {target_dir}")
+            else:
+                self._set_status("警告", "无法自动打开文件夹", target_dir)
+                self._log(
+                    "\n[提示] 请手动前往"
+                    "【文件管理】 -> 【内部存储】 -> 【VideoDownloader】。"
+                )
         else:
             if self.save_dir and os.path.exists(self.save_dir):
                 os.startfile(self.save_dir)
+
+    def _get_android_output_root(self):
+        """获取 Android 外部存储根目录下的 VideoDownloader 文件夹"""
+        from android.storage import primary_external_storage_path
+        return build_android_output_root(primary_external_storage_path())
+
+    def _open_android_directory(self, directory_path):
+        """尝试打开 Android 文件管理器并跳转到指定目录"""
+        os.makedirs(directory_path, exist_ok=True)
+        try:
+            from android import mActivity
+            from jnius import autoclass
+
+            Intent = autoclass('android.content.Intent')
+            Uri = autoclass('android.net.Uri')
+            File = autoclass('java.io.File')
+
+            intent = Intent(Intent.ACTION_VIEW)
+            intent.setDataAndType(
+                Uri.fromFile(File(directory_path)),
+                "resource/folder",
+            )
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            mActivity.startActivity(intent)
+            return True
+        except Exception:
+            return self._open_android_document_tree()
+
+    def _open_android_document_tree(self):
+        """目录直达失败时，退回到系统目录选择器并尽量定位到 VideoDownloader"""
+        try:
+            from android import mActivity
+            from jnius import autoclass
+
+            Intent = autoclass('android.content.Intent')
+            Uri = autoclass('android.net.Uri')
+
+            intent = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE)
+            initial_uri = Uri.parse(
+                "content://com.android.externalstorage.documents/"
+                "document/primary%3AVideoDownloader"
+            )
+            intent.putExtra("android.provider.extra.INITIAL_URI", initial_uri)
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            mActivity.startActivity(intent)
+            return True
+        except Exception as e:
+            self._log(f"[提示] 系统文件管理器打开失败: {e}")
+            return False

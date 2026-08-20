@@ -1,9 +1,11 @@
 """辅助函数单元测试（无 Kivy 依赖，直接测试纯函数）"""
 from app.helpers import (
+    build_android_output_root,
     build_android_save_dir,
     clamp_progress,
     estimate_progress,
     get_loading_phase,
+    should_log_download_progress,
     trim_log_lines,
 )
 
@@ -67,3 +69,24 @@ def test_get_loading_phase_clamps_to_last_phase():
 def test_build_android_save_dir_uses_video_downloader_root_folder():
     save_dir = build_android_save_dir("/storage/emulated/0", "abc123")
     assert save_dir == "/storage/emulated/0/VideoDownloader/slices_abc123"
+
+
+def test_build_android_output_root_uses_video_downloader_folder():
+    assert (
+        build_android_output_root("/storage/emulated/0/")
+        == "/storage/emulated/0/VideoDownloader"
+    )
+
+
+# ── 下载日志节流测试 ───────────────────────────────────────
+
+def test_should_log_download_progress_keeps_early_and_milestone_logs():
+    assert should_log_download_progress(1)
+    assert should_log_download_progress(3)
+    assert should_log_download_progress(10)
+    assert should_log_download_progress(20)
+
+
+def test_should_log_download_progress_skips_noisy_middle_logs():
+    assert not should_log_download_progress(4)
+    assert not should_log_download_progress(19)

@@ -53,5 +53,17 @@ def get_loading_phase(index):
 
 def build_android_save_dir(storage_root, video_id):
     """构建 Android 外部存储根目录下的切片缓存目录"""
+    return f"{build_android_output_root(storage_root)}/slices_{video_id}"
+
+
+def build_android_output_root(storage_root):
+    """构建 Android 外部存储根目录下的应用文件夹"""
     root = storage_root.rstrip("/\\")
-    return f"{root}/VideoDownloader/slices_{video_id}"
+    return f"{root}/VideoDownloader"
+
+
+def should_log_download_progress(count, interval=10):
+    """切片下载日志节流：保留早期反馈和固定里程碑，避免 UI 日志队列积压"""
+    if count <= 3:
+        return True
+    return count % interval == 0

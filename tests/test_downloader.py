@@ -257,6 +257,40 @@ class TestDownloadEngineCallbacks:
         success_logs = [l for l in logs if "成功固化" in l]
         assert len(success_logs) == 2
 
+    def test_progress_logs_are_throttled_for_many_slices(self, tmp_path):
+        """大量切片只记录早期和里程碑日志，避免 UI 日志队列落后于进度"""
+        logs = []
+        engine = _make_engine(
+            tmp_path,
+            on_log=lambda msg: logs.append(msg),
+        )
+
+        mock_response_ok = MagicMock()
+        mock_response_ok.status_code = 200
+        mock_response_ok.content = b"data"
+
+        mock_response_eof = MagicMock()
+        mock_response_eof.status_code = 404
+
+        call_count = 0
+
+        def side_effect(*args, **kwargs):
+            nonlocal call_count
+            call_count += 1
+            if call_count <= 12:
+                return mock_response_ok
+            return mock_response_eof
+
+        mock_session = MagicMock()
+        mock_session.get.side_effect = side_effect
+
+        with patch.object(engine, '_create_session', return_value=mock_session):
+            engine.run()
+
+        success_logs = [l for l in logs if "成功固化" in l]
+        assert len(success_logs) == 4
+        assert any("已下载 10 个切片" in l for l in success_logs)
+
     def test_cancel_stops_download(self, tmp_path):
         """调用 cancel() 应停止下载"""
         engine = _make_engine(tmp_path)

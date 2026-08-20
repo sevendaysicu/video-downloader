@@ -14,6 +14,7 @@ from app.config import (
     RETRY_TOTAL, RETRY_BACKOFF, RETRY_STATUS_CODES,
     DEFAULT_HEADERS, VERIFY_SSL,
 )
+from app.helpers import should_log_download_progress
 
 # 若不验证 SSL，则禁用不安全连接警告，避免刷屏日志
 if not VERIFY_SSL:
@@ -153,18 +154,20 @@ class DownloadEngine:
                             downloaded_count += 1
                             continuous_errors = 0
                             self.on_progress(downloaded_count, 0)
-                            self.on_log(
-                                f"[+] 成功固化: CLS-{idx:03d}.bin"
-                                f" -> 已下载 {downloaded_count} 个切片"
-                            )
+                            if should_log_download_progress(downloaded_count):
+                                self.on_log(
+                                    f"[+] 成功固化: CLS-{idx:03d}.bin"
+                                    f" -> 已下载 {downloaded_count} 个切片"
+                                )
                         elif res == "EXISTS":
                             downloaded_count += 1
                             continuous_errors = 0
                             self.on_progress(downloaded_count, 0)
-                            self.on_log(
-                                f"[-] 跳过重复: CLS-{idx:03d}.bin"
-                                f" -> 已下载 {downloaded_count} 个切片"
-                            )
+                            if should_log_download_progress(downloaded_count):
+                                self.on_log(
+                                    f"[-] 跳过重复: CLS-{idx:03d}.bin"
+                                    f" -> 已下载 {downloaded_count} 个切片"
+                                )
                         elif res.startswith("AUTH_ERR_"):
                             code = res.split('_')[-1]
                             self.on_status(
